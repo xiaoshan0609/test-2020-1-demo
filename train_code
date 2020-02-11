@@ -1,6 +1,4 @@
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix   #混淆矩阵
-import itertools
+import keras.backend.tensorflow_backend as ktf
 from keras.utils import to_categorical #数字标签转化为One-hot编码
 from keras.models import Sequential
 from keras.layers import Dense, Dropout,Flatten,Conv1D,MaxPool1D,BatchNormalization
@@ -8,15 +6,14 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ReduceLROnPlateau
 from keras.callbacks import LearningRateScheduler, EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from keras import optimizers
-from keras.regularizers import l2
 from random import shuffle
 import os
 import numpy as np
 from tqdm import tqdm
 from imblearn.under_sampling import RandomUnderSampler
+import tensorflow as tf
 
 
-import keras.backend.tensorflow_backend as ktf
 # 指定GPUID, 第一块GPU可用
 os.environ["CUDA_VISIBLE_DEVICES"] = "0，1，2，3"
 # GPU 显存自动分配
@@ -63,7 +60,7 @@ class MyCbk(ModelCheckpoint):
 
 #在训练集中分出一部分验证集
 os.chdir(r'/kaggle/input/planetdata2020/train/train')
-val_size=2000   #取出训练集中的十分之一作为验证集
+val_size=4000   #取出训练集中的十分之一作为验证集
 #shuffle_list=[i for i in range(len(file))]
 shuffle_list=X_resampled.tolist()  
 shuffle(shuffle_list)
@@ -153,7 +150,7 @@ ckpt = "model_{epoch:02d}-{val_acc:.2f}.hdf5"
 checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/model', ckpt), monitor='val_acc', save_weights_only=False, verbose=1, save_best_only=True)
 earlystopping = EarlyStopping(monitor='val_acc', verbose=1, patience=3, restore_best_weights=True)
 
-epoch=15
+epoch=30
 batch_size=800
 batch_num=len(shuffle_list)//batch_size
 print('开始训练')
