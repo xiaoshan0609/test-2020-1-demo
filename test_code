@@ -1,0 +1,124 @@
+from keras.models import Sequential
+from keras.layers import Dense, Dropout,Flatten,Conv1D,MaxPool1D,BatchNormalization
+import os
+from tqdm import tqdm
+import numpy as np
+import pandas as pd
+
+#os.chdir(r'E:\planetdata\model')
+
+#fname=r'E:\planetdata\model\planetdata1.hdf5'
+fname=r'E:\planetdata\checkpoints\model_14-0.98.hdf5'
+
+
+
+#重新搭建模型
+''' 第一次的模型
+model=Sequential()
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same",input_shape=(2600,1)))
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(MaxPool1D(pool_size=4))
+model.add(Dropout(0.25))
+#model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(MaxPool1D(pool_size=2,strides=2))
+model.add(Dropout(0.25))
+model.add(Flatten())
+model.add(Dense(128, activation='sigmoid'))    
+model.add(Dropout(0.25))
+'''
+model=Sequential()
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same",input_shape=(2600,1)))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(MaxPool1D(pool_size=4))
+model.add(Dropout(0.25))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=4))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=2,strides=2))
+model.add(Flatten())
+model.add(Dense(128, activation='sigmoid'))
+model.add(Dense(32, activation='sigmoid'))     
+model.add(Dropout(0.25))
+# 输出层
+model.add(Dense(3, activation='softmax'))
+
+model.load_weights(fname)
+
+
+#逐条进行predict
+os.chdir(r'E:\planetdata\vaildation')
+filepath=r'E:\planetdata\vaildation'
+file=os.listdir(filepath)
+file.sort()
+file.sort(key=lambda x:int(x[:-5]))
+val_data=[]
+outcome=[]
+print("逐条进行predict")
+for index in tqdm(range(len(file))):
+    vdata = np.fromfile(file[index],dtype=np.float64)
+    val_data.append(vdata)
+    val_data=np.array(val_data)  #只有先变成list形式，然后转为np.array才能reshape成功
+    val_data=val_data.reshape((val_data.shape[0],val_data.shape[1],1))
+    Y_pred = model.predict(val_data)
+    Y_pred_classes = np.argmax(Y_pred,axis = 1) 
+    outcome.append(Y_pred_classes)
+    val_data=[]
+outcome=np.array(outcome)
+
+ 
+
+#标准验证集label读取
+val_file=r'F:\行星数据\vaildation\val_labels_v1.csv'
+val= pd.read_csv(val_file,encoding='utf-8')
+v_label=val['label']
+label_ture=[]
+ID=val['id']
+ID=ID.to_frame()
+for i in range(len(v_label)):
+    if v_label[i]=="star":
+        label_ture.append(0)
+    elif v_label[i]=="qso":
+        label_ture.append(1)
+    elif v_label[i]=="galaxy":  
+        label_ture.append(2)
+
+
+#生成submission格式
+class_pred=[]
+print("生成submission格式")
+pre_result=[]
+for i in range(len(outcome)):
+    if outcome[i][0]==0:
+        class_pred.append("star")
+        pre_result.append(0)
+    elif outcome[i][0]==1:
+        class_pred.append("qso")
+        pre_result.append(1)
+    elif outcome[i][0]==2:  
+        class_pred.append("galaxy")
+        pre_result.append(2)
+#pre_result=np.array(pre_result)
+pre_result1=np.array(pre_result)
+pre_result1.tofile(r"E:\planetdata"+"\\"+"result"+"\\"+"pre_result2.bin")    
+print("pre_result已保存")
+
+
+#评分计算
+from sklearn.metrics import f1_score
+f1 = f1_score(label_ture,pre_result, average='macro' )
+print('本模型测试结果：',f1)
+
+
+from pandas.core.frame import DataFrame
+c={"label":class_pred}
+data=DataFrame(c)
+df = pd.concat([ID,data], axis=1)
+df.to_csv(r"E:\planetdata\result\predict_label2.csv",index=False)
+print("保存为上传文件类型")
