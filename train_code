@@ -27,12 +27,13 @@ session = tf.Session(config=config)
 ktf.set_session(session)
 
 
-filepath=r'./train'
+filepath=r'/kaggle/input/planetdata2020/train/train'
+
 file=os.listdir(filepath)
 file.sort()
 file.sort(key=lambda x:int(x[:-5]))
 
-label_file=r'E:\planetdata\train_label.bin'
+label_file=r'/kaggle/working/test-2020-1-demo/train_label.bin'
 label = np.fromfile(label_file,dtype=np.int32)
 label_list=label
 label=to_categorical(label, num_classes = 3 )
@@ -61,7 +62,7 @@ class MyCbk(ModelCheckpoint):
 		super(MyCbk, self).set_model(self.single_model)
 
 #在训练集中分出一部分验证集
-os.chdir(r'./train')
+os.chdir(r'/kaggle/input/planetdata2020/train/train')
 val_size=2000   #取出训练集中的十分之一作为验证集
 #shuffle_list=[i for i in range(len(file))]
 shuffle_list=X_resampled.tolist()  
@@ -149,7 +150,7 @@ learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_acc',
                                             )          
                                             
 ckpt = "model_{epoch:02d}-{val_acc:.2f}.hdf5"
-checkpoint = ModelCheckpoint(os.path.join(r'E:\planetdata\checkpoints', ckpt), monitor='val_acc', save_weights_only=False, verbose=1, save_best_only=True)
+checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/model', ckpt), monitor='val_acc', save_weights_only=False, verbose=1, save_best_only=True)
 earlystopping = EarlyStopping(monitor='val_acc', verbose=1, patience=3, restore_best_weights=True)
 
 epoch=15
@@ -172,4 +173,4 @@ model.fit_generator(
                     )
 
 
-model.save_weights(r'E:\planetdata\model\planetdata1.hdf5')
+model.save_weights(r'/kaggle/working/test-2020-1-demo/model/finall.hdf5')
