@@ -15,7 +15,7 @@ import numpy as np
 from tqdm import tqdm
 from imblearn.under_sampling import RandomUnderSampler
 import tensorflow as tf
-
+from keras import backend as K
 
 # 指定GPUID, 第一块GPU可用
 os.environ["CUDA_VISIBLE_DEVICES"] = "0，1，2，3"
@@ -116,11 +116,36 @@ def batch_generator(batch_size):
             #bat_label = bat_label.reshape((bat_label.shape[0],bat_label.shape[1],1))
             yield bat_data,bat_label
 
+# 自定义metrics 用F1_score做评价指标
+def f1(y_true, y_pred):
+    def recall(y_true, y_pred):
+        """Recall metric.
 
-def F1_score(y_true,y_pred):
-    from sklearn.metrics import f1_score
-    f1 = f1_score(y_true,y_pred, average='macro')
-    return f1
+        Only computes a batch-wise average of recall.
+
+        Computes the recall, a metric for multi-label classification of
+        how many relevant items are selected.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + K.epsilon())
+        return recall
+
+    def precision(y_true, y_pred):
+        """Precision metric.
+
+        Only computes a batch-wise average of precision.
+
+        Computes the precision, a metric for multi-label classification of
+        how many selected items are relevant.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
     
 class Metrics(tf.keras.callbacks.Callback):
     def __init__(self, valid_data):
@@ -170,7 +195,7 @@ model.add(Dropout(0.25))
 # 输出层
 model.add(Dense(3, activation='softmax'))
 opt=optimizers.Adam(lr=0.001, epsilon=1e-8, decay=1e-4)
-model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[F1_score])
+model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[f1])
 model.summary()
 
 learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_f1', 
