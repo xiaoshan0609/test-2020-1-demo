@@ -115,8 +115,6 @@ def batch_generator(batch_size):
 #模型搭建
 model=Sequential()
 model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same",input_shape=(2600,1)))
-#对于一维卷积操作来说，这种input_shape是将前面一个维度定义为none
-#写的时候就是(none,2600,1)，none指的是批次进来的个数
 model.add(BatchNormalization())
 model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
 model.add(MaxPool1D(pool_size=4))
@@ -129,13 +127,9 @@ model.add(MaxPool1D(pool_size=4))
 model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
 model.add(BatchNormalization())
 model.add(MaxPool1D(pool_size=2,strides=2))
-model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
-model.add(BatchNormalization())
-model.add(MaxPool1D(pool_size=2,strides=2))
 model.add(Flatten())
 model.add(Dense(128, activation='sigmoid'))
-model.add(Dense(64, activation='sigmoid'))   
-model.add(Dense(32, activation='sigmoid'))       
+model.add(Dense(32, activation='sigmoid'))     
 model.add(Dropout(0.25))
 # 输出层
 model.add(Dense(3, activation='softmax'))
