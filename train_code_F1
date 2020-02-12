@@ -65,7 +65,7 @@ print('类别3数目:',np.sum(label_list==2))
 
 #在训练集中分出一部分验证集
 os.chdir(r'/kaggle/input/planetdata2020/train/train')
-val_size=5000   #取出训练集中的十分之一作为验证集
+val_size=10000   #取出训练集中的十分之一作为验证集
 shuffle_list=[i for i in range(len(file))]
 #shuffle_list=X_resampled.tolist()  
 shuffle(shuffle_list)
@@ -185,7 +185,7 @@ checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/mod
 earlystopping = EarlyStopping(monitor='val_f1', verbose=1, patience=3, restore_best_weights=True)
 
 epoch=30
-batch_size=800
+batch_size=5000
 batch_num=len(shuffle_list)//batch_size
 print('开始训练')
 print('epoch:',epoch)
