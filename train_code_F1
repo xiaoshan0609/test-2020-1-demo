@@ -1,5 +1,5 @@
-#用所有的数据，换F1-score来评价指标
-
+# 用所有的数据，换F1-score来评价指标
+# 加权交叉熵损失函数
 
 import keras.backend.tensorflow_backend as ktf
 from keras.utils import to_categorical #数字标签转化为One-hot编码
@@ -36,10 +36,11 @@ file.sort(key=lambda x:int(x[:-5]))
 label_file=r'/kaggle/working/test-2020-1-demo/train_label.bin'
 label = np.fromfile(label_file,dtype=np.int32)
 label_list=label
-label=to_categorical(label, num_classes = 3 )
+label=to_categorical(label, num_classes = 3 ) #要看看这是啥数据类型
 print('总label个数:',len(label))
 
 #下采样，解决样本不均衡问题
+
 '''
 rus=RandomUnderSampler(random_state=0)
 file_list=[i for i in range(len(file))]
@@ -55,12 +56,25 @@ print('类别1数目:',np.sum(y_resampled==0))
 print('类别2数目:',np.sum(y_resampled==1))
 print('类别3数目:',np.sum(y_resampled==2))
 '''
+'''
+# 自定义加权交叉熵损失函数
+def weighted_crossentroy(y_true,y_pred):
+    coe=[1.0,15,5]
+ '''
+    
+
 
 label_list=np.array(label_list)
 label_list=label_list.reshape((label_list.shape[0]))
 print('类别1数目:',np.sum(label_list==0))
 print('类别2数目:',np.sum(label_list==1))
 print('类别3数目:',np.sum(label_list==2))
+
+#类别极度不平衡，求类别权重
+from sklearn.utils import class_weight
+class_weights=class_weight.compute_class_weight('balanced',np.unique(label_list),label_list)
+print('类别权重为':class_weights)
+
 
 
 #在训练集中分出一部分验证集
@@ -226,6 +240,7 @@ model.fit_generator(
                     callbacks=[learning_rate_reduction,checkpoint,earlystopping],
                     workers=1,
                     use_multiprocessing=False,validation_data=(val_data,val_label)
+                    class_weight=class_weights
                     )
 
 

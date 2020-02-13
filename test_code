@@ -8,7 +8,7 @@ import pandas as pd
 #os.chdir(r'E:\planetdata\model')
 
 #fname=r'E:\planetdata\model\planetdata1.hdf5'
-fname=r'E:\planetdata\checkpoints\model_14-0.98.hdf5'
+#fname=r'/kaggle/working/test-2020-1-demo/model/finall.hdf5'
 
 
 
@@ -53,8 +53,8 @@ model.load_weights(fname)
 
 
 #逐条进行predict
-os.chdir(r'E:\planetdata\vaildation')
-filepath=r'E:\planetdata\vaildation'
+filepath=r'/kaggle/input/planetdata2020/vaildation/vaildation'
+os.chdir(r'/kaggle/input/planetdata2020/vaildation/vaildation')
 file=os.listdir(filepath)
 file.sort()
 file.sort(key=lambda x:int(x[:-5]))
@@ -75,7 +75,7 @@ outcome=np.array(outcome)
  
 
 #标准验证集label读取
-val_file=r'F:\行星数据\vaildation\val_labels_v1.csv'
+val_file=r'/kaggle/working/test-2020-1-demo/val_labels_v1.csv'
 val= pd.read_csv(val_file,encoding='utf-8')
 v_label=val['label']
 label_ture=[]
@@ -106,7 +106,7 @@ for i in range(len(outcome)):
         pre_result.append(2)
 #pre_result=np.array(pre_result)
 pre_result1=np.array(pre_result)
-pre_result1.tofile(r"E:\planetdata"+"\\"+"result"+"\\"+"pre_result2.bin")    
+pre_result1.tofile(r'/kaggle/working/test-2020-1-demo/result/pre_result1.bin')    
 print("pre_result已保存")
 
 
@@ -120,5 +120,5 @@ from pandas.core.frame import DataFrame
 c={"label":class_pred}
 data=DataFrame(c)
 df = pd.concat([ID,data], axis=1)
-df.to_csv(r"E:\planetdata\result\predict_label2.csv",index=False)
+df.to_csv(r'/kaggle/working/test-2020-1-demo/result/predict_label2.csv',index=False)
 print("保存为上传文件类型")
