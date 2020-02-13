@@ -181,7 +181,7 @@ class Metrics(tf.keras.callbacks.Callback):
         return
 
 class MyCbk(ModelCheckpoint):
-	def __init__(self, model, filepath, monitor='val_f1', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1):
+	def __init__(self, model, filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1):
 		self.single_model = model
 		super(MyCbk, self).__init__(filepath, monitor, verbose, save_best_only, save_weights_only, mode, period)
 	def set_model(self, model):
@@ -209,10 +209,11 @@ model.add(Dropout(0.25))
 # 输出层
 model.add(Dense(3, activation='softmax'))
 opt=optimizers.Adam(lr=0.001, epsilon=1e-8, decay=1e-4)
-model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[f1])
+from keras improt metrics
+model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[metrics.categorical_accuracy])
 model.summary()
 
-learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_f1', 
+learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_loss', 
                                             patience=3,
                                             verbose=1,
                                             factor=0.5,
@@ -220,8 +221,8 @@ learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_f1',
                                             )          
                                             
 ckpt = "model_{epoch:02d}-{val_f1:.2f}.hdf5"
-checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/model', ckpt), monitor='val_f1', save_weights_only=False, verbose=1, save_best_only=True)
-earlystopping = EarlyStopping(monitor='val_f1', verbose=1, patience=3, restore_best_weights=True)
+checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/model', ckpt), monitor='val_loss', save_weights_only=False, verbose=1, save_best_only=True)
+earlystopping = EarlyStopping(monitor='val_loss', verbose=1, patience=3, restore_best_weights=True)
 
 epoch=30
 batch_size=1000

@@ -9,6 +9,7 @@ import pandas as pd
 
 #fname=r'E:\planetdata\model\planetdata1.hdf5'
 #fname=r'/kaggle/working/test-2020-1-demo/model/finall.hdf5'
+fname=r'/kaggle/working/test-2020-1-demo/model/model_01-0.98.hdf5'
 
 
 
