@@ -160,7 +160,7 @@ def f1(y_true, y_pred):
     precision = precision(y_true, y_pred)
     recall = recall(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
-    
+'''    
 class Metrics(tf.keras.callbacks.Callback):
     def __init__(self, valid_data):
         super(Metrics, self).__init__()
@@ -179,6 +179,7 @@ class Metrics(tf.keras.callbacks.Callback):
         logs['val_precision'] = _val_precision
         print(" — val_f1: %f — val_precision: %f — val_recall: %f" % (_val_f1, _val_precision, _val_recall))
         return
+'''
 
 class MyCbk(ModelCheckpoint):
 	def __init__(self, model, filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1):
@@ -220,7 +221,7 @@ learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_loss',
                                             min_lr=0.000001
                                             )          
                                             
-ckpt = "model_{epoch:02d}-{val_f1:.2f}.hdf5"
+ckpt = "model_{epoch:02d}-{val_loss:.2f}.hdf5"
 checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/model', ckpt), monitor='val_loss', save_weights_only=False, verbose=1, save_best_only=True)
 earlystopping = EarlyStopping(monitor='val_loss', verbose=1, patience=3, restore_best_weights=True)
 
