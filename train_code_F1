@@ -73,7 +73,7 @@ print('类别3数目:',np.sum(label_list==2))
 #类别极度不平衡，求类别权重
 from sklearn.utils import class_weight
 class_weights=class_weight.compute_class_weight('balanced',np.unique(label_list),label_list)
-print('类别权重为':class_weights)
+print('类别权重为:',class_weights)
 
 
 
