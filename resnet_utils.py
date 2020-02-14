@@ -34,9 +34,6 @@ def MiniModel(input_shape):
     net = Unit(net,64,pool=True)
     net = Unit(net,64)
 
- 
-    net = Unit(net,64,pool=True)
-    net = Unit(net,64)
    
  
     net = BatchNormalization()(net)
@@ -45,7 +42,6 @@ def MiniModel(input_shape):
  
     net = AveragePooling1D(pool_size=(4))(net)
     net = Flatten()(net)
-    net = Dense(units=64, activation='relu')(net) 
     net = Dense(units=32, activation='sigmoid')(net) 
     net = Dense(units=3,activation="softmax")(net)
     model = Model(inputs=data,outputs=net)
