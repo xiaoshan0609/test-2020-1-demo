@@ -36,18 +36,13 @@ def MiniModel(input_shape):
     net = Unit(net,128)
     net = Unit(net,128)
  
-    net = Unit(net, 256,pool=True)
-    net = Unit(net, 256)
-    net = Unit(net, 256)
- 
     net = BatchNormalization()(net)
     net = Activation("relu")(net)
     net = Dropout(0.25)(net)
  
     net = AveragePooling1D(pool_size=(4))(net)
     net = Flatten()(net)
-    net = Dense(units=128,activation="sigmoid")(net)
-    net = Dense(units=32, activation='sigmoid')(net) 
+    net = Dense(units=32,activation="sigmoid")(net)
     net = Dense(units=3,activation="softmax")(net)
     
     model = Model(inputs=data,outputs=net)
