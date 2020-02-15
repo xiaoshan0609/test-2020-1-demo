@@ -28,10 +28,8 @@ def MiniModel(input_shape):
     net = Unit(net,64,pool=True)
    
     net = Unit(net,32,pool=True)
-    net = Unit(net,32)
    
     net = Unit(net,32,pool=True)
-    net = Unit(net,32)
     
     net = BatchNormalization()(net)
     net = Activation("relu")(net)
