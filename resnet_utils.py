@@ -4,7 +4,7 @@ from keras.layers import Dense, Dropout,Flatten,Conv1D,MaxPooling1D,BatchNormali
 from keras.layers.core import Activation
 from keras.models import Model, Input
 
-def Unit(x,filters,pool=False)
+def Unit(x,filters,pool=False):
     res = x
     if pool:
         x = MaxPooling1D(pool_size=(2))(x)
