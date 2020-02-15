@@ -1,5 +1,6 @@
 # 用了交叉熵损失来做模型评价指标了
-# 这是用下采样去做的
+# 加权交叉熵损失函数
+
 import keras.backend.tensorflow_backend as ktf
 from keras.utils import to_categorical #数字标签转化为One-hot编码
 from keras.models import Sequential
@@ -16,6 +17,8 @@ from imblearn.under_sampling import RandomUnderSampler
 import tensorflow as tf
 from keras import backend as K
 from resnet_utils import MiniModel
+from resnet_builder.resnet import ResnetBuilder
+from tensorflow.keras.layers import Input 
 
 # 指定GPUID, 第一块GPU可用
 os.environ["CUDA_VISIBLE_DEVICES"] = "0，1，2，3"
@@ -40,7 +43,7 @@ label=to_categorical(label, num_classes = 3 ) #要看看这是啥数据类型
 print('总label个数:',len(label))
 
 #下采样，解决样本不均衡问题
-
+'''
 rus=RandomUnderSampler(random_state=0)
 file_list=[i for i in range(len(file))]
 file_list=np.array(file_list)
@@ -54,7 +57,7 @@ print('下采样完成===训练集均衡化')
 print('类别1数目:',np.sum(y_resampled==0))
 print('类别2数目:',np.sum(y_resampled==1))
 print('类别3数目:',np.sum(y_resampled==2))
-
+'''
 '''
 # 自定义加权交叉熵损失函数
 def weighted_crossentroy(y_true,y_pred):
@@ -62,7 +65,7 @@ def weighted_crossentroy(y_true,y_pred):
  '''
     
 
-'''
+
 label_list=np.array(label_list)
 label_list=label_list.reshape((label_list.shape[0]))
 print('类别1数目:',np.sum(label_list==0))
@@ -74,15 +77,15 @@ print('类别3数目:',np.sum(label_list==2))
 from sklearn.utils import class_weight
 class_weights=class_weight.compute_class_weight('balanced',np.unique(label_list),label_list)
 print('类别权重为:',class_weights)
-'''
+
 
 
 
 #在训练集中分出一部分验证集
 os.chdir(r'/kaggle/input/planetdata2020/train/train')
 val_size=10000   #取出训练集中的十分之一作为验证集
-#shuffle_list=[i for i in range(len(file))]
-shuffle_list=X_resampled.tolist()  
+shuffle_list=[i for i in range(len(file))]
+#shuffle_list=X_resampled.tolist()  
 shuffle(shuffle_list)
 val_data = []
 val_label = []
@@ -191,7 +194,8 @@ class MyCbk(ModelCheckpoint):
 
 #模型搭建
 input_shape=(2600,1)
-model = MiniModel(input_shape)
+model = ResnetBuilder(name="ResNet18",mode='1D')
+model(Input((2600,1)))
 
 from keras import metrics
 model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[metrics.categorical_accuracy])
@@ -224,8 +228,8 @@ model.fit_generator(
                     epochs=epoch,
                     callbacks=[learning_rate_reduction,checkpoint,earlystopping],
                     workers=1,
-                    use_multiprocessing=False,validation_data=(val_data,val_label)
-                    #class_weight=class_weights
+                    use_multiprocessing=False,validation_data=(val_data,val_label),
+                    class_weight=class_weights
                     )
 
 
