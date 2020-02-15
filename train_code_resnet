@@ -194,7 +194,7 @@ input_shape=(2600,1)
 model = MiniModel(input_shape)
 
 from keras import metrics
-model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[f1])
+model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[metrics.categorical_accuracy])
 model.summary()
 
 learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_loss', 
