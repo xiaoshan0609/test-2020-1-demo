@@ -196,7 +196,7 @@ class MyCbk(ModelCheckpoint):
 input_shape=(2600,1)
 model = ResnetBuilder(name="ResNet18",mode='1D')
 model(Input((2600,1)))
-
+opt=optimizers.Adam(lr=0.001, epsilon=1e-8, decay=1e-4)
 from keras import metrics
 model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[metrics.categorical_accuracy])
 model.summary()
