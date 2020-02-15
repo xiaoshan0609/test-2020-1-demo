@@ -42,7 +42,6 @@ print('总label个数:',len(label))
 
 #下采样，解决样本不均衡问题
 
-'''
 rus=RandomUnderSampler(random_state=0)
 file_list=[i for i in range(len(file))]
 file_list=np.array(file_list)
@@ -56,7 +55,7 @@ print('下采样完成===训练集均衡化')
 print('类别1数目:',np.sum(y_resampled==0))
 print('类别2数目:',np.sum(y_resampled==1))
 print('类别3数目:',np.sum(y_resampled==2))
-'''
+
 '''
 # 自定义加权交叉熵损失函数
 def weighted_crossentroy(y_true,y_pred):
@@ -64,25 +63,27 @@ def weighted_crossentroy(y_true,y_pred):
  '''
     
 
-
+'''
 label_list=np.array(label_list)
 label_list=label_list.reshape((label_list.shape[0]))
 print('类别1数目:',np.sum(label_list==0))
 print('类别2数目:',np.sum(label_list==1))
 print('类别3数目:',np.sum(label_list==2))
 
+
 #类别极度不平衡，求类别权重
 from sklearn.utils import class_weight
 class_weights=class_weight.compute_class_weight('balanced',np.unique(label_list),label_list)
 print('类别权重为:',class_weights)
+'''
 
 
 
 #在训练集中分出一部分验证集
 os.chdir(r'/kaggle/input/planetdata2020/train/train')
 val_size=10000   #取出训练集中的十分之一作为验证集
-shuffle_list=[i for i in range(len(file))]
-#shuffle_list=X_resampled.tolist()  
+#shuffle_list=[i for i in range(len(file))]
+shuffle_list=X_resampled.tolist()  
 shuffle(shuffle_list)
 val_data = []
 val_label = []
@@ -209,7 +210,7 @@ checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/mod
 earlystopping = EarlyStopping(monitor='val_loss', verbose=1, patience=3, restore_best_weights=True)
 
 epoch=30
-batch_size=3000
+batch_size=2000
 batch_num=len(shuffle_list)//batch_size
 print('开始训练')
 print('epoch:',epoch)
