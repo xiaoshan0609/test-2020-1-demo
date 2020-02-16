@@ -99,39 +99,39 @@ class Identity_bottleneck_block(tf.keras.Model):
         ConvLayer = define_ConvLayer(mode)
         filters1, filters2, filters3 = filters
         if mode=="1D" or mode=="2D" or mode=="3D":
-            self.conv1 = ConvLayer(filters1, 1, kernel_initializer=kernel_initializer,padding='same')
             self.bn1 = NormLayer()
             self.relu1 = Activation('relu')
-            self.conv2 = ConvLayer(filters2,  kernel_size, kernel_initializer=kernel_initializer,padding='same')
+            self.conv1 = ConvLayer(filters1, 1, kernel_initializer=kernel_initializer,padding='same')
             self.bn2 = NormLayer()
             self.relu2 = Activation('relu')
-            self.conv3 = ConvLayer(filters3, 1, kernel_initializer=kernel_initializer,padding='same')
+            self.conv2 = ConvLayer(filters2,  kernel_size, kernel_initializer=kernel_initializer,padding='same')
             self.bn3 = NormLayer()
             self.relu3 = Activation('relu')
+            self.conv3 = ConvLayer(filters3, 1, kernel_initializer=kernel_initializer,padding='same')
         elif mode=="TimeD":
-            self.conv1 = TimeDistributed(ConvLayer(filters1, (1,1), kernel_initializer=kernel_initializer,padding='same'))
             self.bn1 = TimeDistributed(NormLayer())
             self.relu1 = TimeDistributed(Activation('relu'))
-            self.conv2 = TimeDistributed(ConvLayer(filters2,  kernel_size, kernel_initializer=kernel_initializer,padding='same'))
+            self.conv1 = TimeDistributed(ConvLayer(filters1, (1,1), kernel_initializer=kernel_initializer,padding='same'))
             self.bn2 = TimeDistributed(NormLayer())
             self.relu2 = TimeDistributed(Activation('relu'))
-            self.conv3 = TimeDistributed(ConvLayer(filters3, (1,1), kernel_initializer=kernel_initializer,padding='same'))
+            self.conv2 = TimeDistributed(ConvLayer(filters2,  kernel_size, kernel_initializer=kernel_initializer,padding='same'))
             self.bn3 = TimeDistributed(NormLayer())
             self.relu3 = TimeDistributed(Activation('relu'))
+            self.conv3 = TimeDistributed(ConvLayer(filters3, (1,1), kernel_initializer=kernel_initializer,padding='same'))
 
         self.add = Add()
 
     def call(self, x):
         residual = x
-        h = self.conv1(x)
-        h = self.bn1(h)
+        h = self.bn1(x)
         h = self.relu1(h)
-        h = self.conv2(h)
+        h = self.conv1(h)
         h = self.bn2(h)
         h = self.relu2(h)
-        h = self.conv3(h)
+        h = self.conv2(h)
         h = self.bn3(h)
         h = self.relu3(h)
+        h = self.conv3(h)
         # Merge
         output = self.add([residual, h])
         return output
@@ -189,18 +189,18 @@ class Conv_bottleneck_block(tf.keras.Model):
     def call(self, x):
         residual = x
         #Left
-        h = self.conv1(x)
-        h = self.bn1(h)
+        h = self.bn1(x)
         h = self.relu1(h)
-        h = self.conv2(h)
+        h = self.conv1(h)
         h = self.bn2(h)
         h = self.relu2(h)
-        h = self.conv3(h)
+        h = self.conv2(h)
         h = self.bn3(h)
         h = self.relu3(h)
+        h = self.conv3(h)
         #Right
-        residual = self.s_conv(residual)
         residual = self.s_bn(residual)
+        residual = self.s_conv(residual)
         # Merge
         output = self.add([residual, h])
         return output
@@ -242,12 +242,12 @@ class Identity_basic_block(tf.keras.Model):
 
     def call(self, x):
         residual = x
-        h = self.conv1(x)
-        h = self.bn1(h)
+        h = self.bn1(x)
         h = self.relu1(h)
-        h = self.conv2(h)
+        h = self.conv1(h)
         h = self.bn2(h)
         h = self.relu2(h)
+        h = self.conv2(h)
         # Merge
         output = self.add([residual, h])
         return output
@@ -298,16 +298,15 @@ class Conv_basic_block(tf.keras.Model):
 
     def call(self, x):
         #Left
-        residual = x
-        h = self.conv1(x)
-        h = self.bn1(h)
+        h = self.bn1(x)
         h = self.relu1(h)
+        h = self.conv1(h)
         h = self.bn2(h)
         h = self.relu2(h)
         h = self.conv2(h)
         #Right
+        residual = self.s_bn(x)
         residual = self.s_conv(residual)
-        residual = self.s_bn(residual)
         # Merge
         output = self.add([residual, h])
         return output
@@ -375,53 +374,46 @@ class ResnetBuilder(tf.keras.Model):
         else:
             raise Exception(" Name Error! you can use ResNet18,ResNet34,ResNet50,ResNet101, or ResNet152. Current name:",name)
 
+        if self.block_type=="basic":
+            IdBlock = Identity_basic_block
+            ConvBlock = Conv_basic_block
+            all_filters = []
+            for s_f in self.stage_filters:
+                all_filters.append([s_f, s_f])
 
-        # block type define
-        self.define_block_type()
+        elif self.block_type=="bottleneck":
+            IdBlock = Identity_bottleneck_block
+            ConvBlock = Conv_bottleneck_block
+            all_filters = []
+            for s_f in self.stage_filters:
+                all_filters.append([s_f, s_f, s_f*4])
+
+
         # stage1 
-        self.conv1 = Conv_stage1_block(filters=self.all_filters[0][0],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+        self.conv1 = Conv_stage1_block(filters=all_filters[0][0],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         # stage2
         self.stage2_convs = {}
-        self.stage2_convs[0] = self.ConvBlock(filters=self.all_filters[0],strides=1,mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+        self.stage2_convs[0] = ConvBlock(filters=all_filters[0],strides=1,mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         for rep in range(1,self.reptitions[0]):
-            self.stage2_convs[rep] = self.IdBlock(filters=self.all_filters[0],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+            self.stage2_convs[rep] = IdBlock(filters=all_filters[0],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         # stage3
         self.stage3_convs = {}
-        self.stage3_convs[0] = self.ConvBlock(filters=self.all_filters[1],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+        self.stage3_convs[0] = ConvBlock(filters=all_filters[1],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         for rep in range(1,self.reptitions[1]):
-            self.stage3_convs[rep] = self.IdBlock(filters=self.all_filters[1],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+            self.stage3_convs[rep] = IdBlock(filters=all_filters[1],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         # stage4
         self.stage4_convs = {}
-        self.stage4_convs[0] = self.ConvBlock(filters=self.all_filters[2],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+        self.stage4_convs[0] = ConvBlock(filters=all_filters[2],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         for rep in range(1,self.reptitions[2]):
-            self.stage4_convs[rep] = self.IdBlock(filters=self.all_filters[2],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+            self.stage4_convs[rep] = IdBlock(filters=all_filters[2],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         # stage5
         self.stage5_convs = {}
-        self.stage5_convs[0] = self.ConvBlock(filters=self.all_filters[3],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+        self.stage5_convs[0] = ConvBlock(filters=all_filters[3],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         for rep in range(1,self.reptitions[3]):
-            self.stage5_convs[rep] = self.IdBlock(filters=self.all_filters[3],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
+            self.stage5_convs[rep] = IdBlock(filters=all_filters[3],mode=mode,norm=norm,kernel_initializer=kernel_initializer)
         # Final Layer
         if self.pooling!=None:
             self.fin = Fin_layer(mode=mode, include_top=include_top, class_num=class_num, pooling=self.pooling)
-
-
-    def define_block_type(self):
-        '''define block type 
-        '''
-        print("original")
-        if self.block_type=="basic":
-            self.IdBlock = Identity_basic_block
-            self.ConvBlock = Conv_basic_block
-            self.all_filters = []
-            for s_f in self.stage_filters:
-                self.all_filters.append([s_f, s_f])
-
-        elif self.block_type=="bottleneck":
-            self.IdBlock = Identity_bottleneck_block
-            self.ConvBlock = Conv_bottleneck_block
-            self.all_filters = []
-            for s_f in self.stage_filters:
-                self.all_filters.append([s_f, s_f, s_f*4])
 
 
     def call(self, x):
