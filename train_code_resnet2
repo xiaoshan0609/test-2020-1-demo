@@ -213,7 +213,7 @@ checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/mod
 earlystopping = EarlyStopping(monitor='val_loss', verbose=1, patience=3, restore_best_weights=True)
 
 epoch=30
-batch_size=2000
+batch_size=1000
 batch_num=len(shuffle_list)//batch_size
 print('开始训练')
 print('epoch:',epoch)
