@@ -1,0 +1,337 @@
+# 用了交叉熵损失来做模型评价指标了
+# 加权交叉熵损失函数
+
+import keras.backend.tensorflow_backend as ktf
+from keras.utils import to_categorical #数字标签转化为One-hot编码
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout,Flatten,Conv1D,MaxPool1D,BatchNormalization
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ReduceLROnPlateau
+from keras.callbacks import LearningRateScheduler, EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from keras import optimizers
+from random import shuffle
+import os
+import numpy as np
+from tqdm import tqdm
+from imblearn.under_sampling import RandomUnderSampler
+import tensorflow as tf
+from keras import backend as K
+import xgboost
+
+# 指定GPUID, 第一块GPU可用
+os.environ["CUDA_VISIBLE_DEVICES"] = "0，1，2，3"
+# GPU 显存自动分配
+config = tf.ConfigProto(allow_soft_placement=True)
+config.gpu_options.allow_growth=True
+# #config.gpu_options.per_process_gpu_memory_fraction = 0.3
+session = tf.Session(config=config)
+ktf.set_session(session)
+
+
+filepath=r'/kaggle/input/planetdata2020/train/train'
+
+file=os.listdir(filepath)
+file.sort()
+file.sort(key=lambda x:int(x[:-5]))
+
+label_file=r'/kaggle/working/test-2020-1-demo/train_label.bin'
+label = np.fromfile(label_file,dtype=np.int32)
+label_list=label
+label_xgb=label
+label=to_categorical(label, num_classes = 3 ) #cnn需要独热编码
+print('总label个数:',len(label))
+
+#下采样，解决样本不均衡问题
+
+'''
+rus=RandomUnderSampler(random_state=0)
+file_list=[i for i in range(len(file))]
+file_list=np.array(file_list)
+label_list=np.array(label_list)
+file_list=file_list.reshape((file_list.shape[0],1))
+label_list=label_list.reshape((label_list.shape[0]))
+print('训练集不均衡===进行下采样')
+X_resampled, y_resampled = rus.fit_resample(file_list, label_list)
+X_resampled=X_resampled.reshape((X_resampled.shape[0],))
+print('下采样完成===训练集均衡化')
+print('类别1数目:',np.sum(y_resampled==0))
+print('类别2数目:',np.sum(y_resampled==1))
+print('类别3数目:',np.sum(y_resampled==2))
+'''
+'''
+# 自定义加权交叉熵损失函数
+def weighted_crossentroy(y_true,y_pred):
+    coe=[1.0,15,5]
+ '''
+    
+
+
+label_list=np.array(label_list)
+label_list=label_list.reshape((label_list.shape[0]))
+print('类别1数目:',np.sum(label_list==0))
+print('类别2数目:',np.sum(label_list==1))
+print('类别3数目:',np.sum(label_list==2))
+
+#做xgb的目标,xgboost不需要独热编码
+label_xgb=np.array(label_xgb)
+label_xgb=label_xgb.reshape((label_xgb.shape[0]))
+label_xgb=np.array(label_xgb)
+
+
+
+
+
+#类别极度不平衡，求类别权重
+from sklearn.utils import class_weight
+class_weights=class_weight.compute_class_weight('balanced',np.unique(label_list),label_list)
+print('类别权重为:',class_weights)
+
+
+
+#在训练集中分出一部分验证集
+os.chdir(r'/kaggle/input/planetdata2020/train/train')
+val_size=10000   #取出训练集中的十分之一作为验证集
+shuffle_list=[i for i in range(len(file))]
+#shuffle_list=X_resampled.tolist()  
+shuffle(shuffle_list)
+val_data = []
+val_label = []
+begin = val_size
+end = begin + val_size
+val_list = shuffle_list[begin:end]
+
+print('======随机划分训练集与验证集=======')
+print("验证集size：", val_size)
+
+xgb_val_label=[]
+for index in tqdm(range(len(val_list))):
+	vdata = np.fromfile(file[val_list[index]],dtype=np.float64)# 了
+	vlabel = label[val_list[index]]
+	val_data.append(vdata)
+	val_label.append(vlabel)
+    xgb_val_label.append(label_list[val_list[index]])
+val_data=np.array(val_data)
+val_label=np.array(val_label)
+val_data=val_data.reshape((val_data.shape[0],val_data.shape[1],1))
+xgb_val_label=np.array(xgb_val_label)
+
+
+#val_label = val_label.reshape((val_label.shape[0],val_label.shape[1],1))
+
+print('======训练集与验证集划分完成=======')
+
+for index in range(len(val_list)):
+    shuffle_list.remove(val_list[index]) #这个在训练之后就不会改变了
+
+def batch_generator(batch_size):
+    global file
+    global label
+    global shuffle_list
+    shuffle(shuffle_list)
+    while 1:
+        for i in range(len(shuffle_list)//batch_size):
+            bat_data=[]
+            bat_label=[]
+            begin = i *batch_size
+            end = begin + batch_size
+            sub_list=shuffle_list[begin:end]
+            for index in range(len(sub_list)):
+                tdata=np.fromfile(file[sub_list[index]],dtype=np.float64)
+                tlabel=label[sub_list[index]]
+                bat_data.append(tdata)  
+                bat_label.append(tlabel)
+            bat_data=np.array(bat_data)
+            bat_label=np.array(bat_label)
+            bat_data=bat_data.reshape((bat_data.shape[0],bat_data.shape[1],1))
+            #bat_label = bat_label.reshape((bat_label.shape[0],bat_label.shape[1],1))
+            yield bat_data,bat_label
+
+# 自定义metrics 用F1_score做评价指标
+def f1(y_true, y_pred):
+    def recall(y_true, y_pred):
+        """Recall metric.
+
+        Only computes a batch-wise average of recall.
+
+        Computes the recall, a metric for multi-label classification of
+        how many relevant items are selected.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + K.epsilon())
+        return recall
+
+    def precision(y_true, y_pred):
+        """Precision metric.
+
+        Only computes a batch-wise average of precision.
+
+        Computes the precision, a metric for multi-label classification of
+        how many selected items are relevant.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+'''    
+class Metrics(tf.keras.callbacks.Callback):
+    def __init__(self, valid_data):
+        super(Metrics, self).__init__()
+        self.validation_data = valid_data
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        val_predict = np.argmax(self.model.predict(self.validation_data[0]), -1)
+        val_targ = self.validation_data[1]
+        if len(val_targ.shape) == 2 and val_targ.shape[1] != 1:
+            val_targ = np.argmax(val_targ, -1)
+        _val_f1 = f1_score(val_targ, val_predict, average='macro')
+        _val_recall = recall_score(val_targ, val_predict, average='macro')
+        _val_precision = precision_score(val_targ, val_predict, average='macro')
+        logs['val_f1'] = _val_f1
+        logs['val_recall'] = _val_recall
+        logs['val_precision'] = _val_precision
+        print(" — val_f1: %f — val_precision: %f — val_recall: %f" % (_val_f1, _val_precision, _val_recall))
+        return
+'''
+
+class MyCbk(ModelCheckpoint):
+	def __init__(self, model, filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1):
+		self.single_model = model
+		super(MyCbk, self).__init__(filepath, monitor, verbose, save_best_only, save_weights_only, mode, period)
+	def set_model(self, model):
+		super(MyCbk, self).set_model(self.single_model)
+
+#模型搭建
+model=Sequential()
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same",input_shape=(2600,1)))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(MaxPool1D(pool_size=4))
+model.add(Dropout(0.25))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=4))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=2,strides=2))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=2,strides=2))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=2,strides=1))
+model.add(Flatten())
+model.add(Dense(128, activation='sigmoid'))  
+model.add(Dense(32, activation='sigmoid'),name='layer_xgb')   
+model.add(Dropout(0.25))
+
+# 输出层
+model.add(Dense(3, activation='softmax'))
+opt=optimizers.Adam(lr=0.001, epsilon=1e-8, decay=1e-4)
+from keras import metrics
+model.compile(optimizer = opt , loss = "categorical_crossentropy", metrics=[metrics.categorical_accuracy])
+model.summary()
+
+model_layer_xgb = Model(inputs=model.input, 
+                                 outputs=model.get_layer('layer_xgb').output) # xgb的输入模型
+
+learning_rate_reduction = ReduceLROnPlateau(monitor = 'val_loss', 
+                                            patience=3,
+                                            verbose=1,
+                                            factor=0.5,
+                                            min_lr=0.000001
+                                            )          
+                                            
+ckpt = "model_{epoch:02d}-{val_loss:.2f}.hdf5"
+checkpoint = ModelCheckpoint(os.path.join(r'/kaggle/working/test-2020-1-demo/model', ckpt), monitor='val_loss', save_weights_only=False, verbose=1, save_best_only=True)
+earlystopping = EarlyStopping(monitor='val_loss', verbose=1, patience=3, restore_best_weights=True)
+
+epoch=30
+batch_size=3000
+batch_num=len(shuffle_list)//batch_size
+print('开始训练')
+print('epoch:',epoch)
+print('batchsize:',batch_size)
+print('batch_num:',batch_num)
+
+
+
+
+model.fit_generator(
+                    batch_generator(batch_size),steps_per_epoch=batch_num,
+                    epochs=epoch,
+                    callbacks=[learning_rate_reduction,checkpoint,earlystopping],
+                    workers=1,
+                    use_multiprocessing=False,validation_data=(val_data,val_label),
+                    class_weight=class_weights
+                    )
+
+
+model.save_weights(r'/kaggle/working/test-2020-1-demo/model/finall.hdf5')
+
+print('CNN模型已训练完毕，清楚相关变量与内存，开始xgboost的训练')
+
+
+print("准备xgb训练集")
+
+xgb_trian=[]
+xgb_train_label=[]
+
+for index in tqdm(range(len(shuffle_list))):
+    data = np.fromfile(file[shuffle_list[index]],dtype=np.float64)
+    Y_pred = model_layer_xgb.predict(data)
+    xgb_trian.append(Y_pred)
+    xgb_train_label.append(label_xgb[shuffle_list[index]])
+
+xgb_trian=np.array(xgb_trian)
+xgb_train_label=np.array(xgb_trian_label)
+train = xgboost.DMatrix(xgb_trian, label=xgb_train_label)
+print('训练集size：',xgb_train.shape)
+
+
+xgb_val=val_data
+test = xgboost.DMatrix(xgb_val, label=xgb_val_label)
+print('测试集size：',test.shape)
+
+print('xgboost模型开始训练')
+
+
+params = {
+        'booster': 'gbtree',
+        'objective': 'multi:softmax',
+        'num_class':3
+        'max_depth': 6,
+        'subsample': 0.7,
+        'colsample_bytree': 0.7,
+        'min_child_weight': 3,
+        'silent': 1,
+        'eta': 0.01,
+        'seed': 2020,
+        'tree_method':'gpu_hist'
+        'nthread': 4,}
+watchlist = [(train, 'train'),(test,'val')]
+xgb_model = xgb.train(params,train,num_boost_round=5000,evals = watchlist,early_stopping_rounds=300，verbose_eval=True)
+        
+xgb_model.save_model(r'/kaggle/working/test-2020-1-demo/model/xgb.model')
+
+
+
+
+
+
+
+
