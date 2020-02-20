@@ -1,0 +1,171 @@
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout,Flatten,Conv1D,MaxPool1D,BatchNormalization
+import os
+from tqdm import tqdm
+import numpy as np
+import pandas as pd
+from keras import backend as K
+import xgboost
+
+# 指定GPUID, 第一块GPU可用
+os.environ["CUDA_VISIBLE_DEVICES"] = "0，1，2，3"
+# GPU 显存自动分配
+config = tf.ConfigProto(allow_soft_placement=True)
+config.gpu_options.allow_growth=True
+# #config.gpu_options.per_process_gpu_memory_fraction = 0.3
+session = tf.Session(config=config)
+ktf.set_session(session)
+
+fname=r'/kaggle/working/test-2020-1-demo/model/model2_14-0.02.hdf5'
+
+
+
+model=Sequential()
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same",input_shape=(2600,1)))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=64,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(MaxPool1D(pool_size=4))
+model.add(Dropout(0.25))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='sigmoid',padding="same"))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=4))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=2,strides=2))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=2,strides=2))
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+model.add(Conv1D(filters=32,kernel_size=3,strides=1,activation='relu',padding="same"))
+model.add(Dropout(0.25))
+model.add(BatchNormalization())
+model.add(MaxPool1D(pool_size=2,strides=1))
+model.add(Flatten())
+model.add(Dense(128, activation='sigmoid'))  
+model.add(Dense(32, activation='sigmoid'))   
+model.add(Dropout(0.25))
+# 输出层
+model.add(Dense(3, activation='softmax'))
+
+model.load_weights(fname)
+
+
+model_layer_xgb = Model(inputs=model.input,outputs=model.get_layer('dense_2').output) 
+
+
+filepath=r'/kaggle/input/planetdata2020/train/train'
+
+file=os.listdir(filepath)
+file.sort()
+file.sort(key=lambda x:int(x[:-5]))
+
+label_file=r'/kaggle/working/test-2020-1-demo/train_label.bin'
+label = np.fromfile(label_file,dtype=np.int32)
+label_xgb=label
+print('总label个数:',len(label))
+
+label_xgb=np.array(label_xgb)
+label_xgb=label_xgb.reshape((label_xgb.shape[0]))
+label_xgb=np.array(label_xgb)
+
+'''
+from sklearn.utils import class_weight
+class_weights=class_weight.compute_class_weight('balanced',np.unique(label_list),label_list)
+print('类别权重为:',class_weights)
+'''
+
+#在训练集中分出一部分验证集
+os.chdir(r'/kaggle/input/planetdata2020/train/train')
+val_size=10000   #取出训练集中的十分之一作为验证集
+shuffle_list=[i for i in range(len(file))]
+#shuffle_list=X_resampled.tolist()  
+shuffle(shuffle_list)
+val_data = []
+val_label = []
+begin = val_size
+end = begin + val_size
+val_list = shuffle_list[begin:end]
+
+print('======随机划分训练集与验证集=======')
+print("验证集size：", val_size)
+
+xgb_val_label=[]
+for index in tqdm(range(len(val_list))):
+	vdata = np.fromfile(file[val_list[index]],dtype=np.float64)# 了
+	vlabel = label[val_list[index]]
+	val_data.append(vdata)
+	val_label.append(vlabel)
+    xgb_val_label.append(label_list[val_list[index]])
+val_data=np.array(val_data)
+val_label=np.array(val_label)
+val_data=val_data.reshape((val_data.shape[0],val_data.shape[1],1))
+xgb_val_label=np.array(xgb_val_label)
+print('======训练集与验证集划分完成=======')
+
+for index in range(len(val_list)):
+    shuffle_list.remove(val_list[index]) #这个在训练之后就不会改变了
+
+print("准备xgb训练集")
+
+xgb_trian=[]
+xgb_train_label=[]
+
+for index in tqdm(range(len(shuffle_list))):
+    data = np.fromfile(file[shuffle_list[index]],dtype=np.float64)
+    Y_pred = model_layer_xgb.predict(data)
+    xgb_trian.append(Y_pred)
+    xgb_train_label.append(label_xgb[shuffle_list[index]])
+
+xgb_trian=np.array(xgb_trian)
+xgb_train_label=np.array(xgb_trian_label)
+train = xgboost.DMatrix(xgb_trian, label=xgb_train_label)
+print('训练集size：',xgb_train.shape)
+
+xgb_val=val_data
+test = xgboost.DMatrix(xgb_val, label=xgb_val_label)
+print('测试集size：',test.shape)
+print('xgboost模型开始训练')
+
+params = {
+        'booster': 'gbtree',
+        'objective': 'multi:softmax',
+        'num_class':3
+        'max_depth': 6,
+        'subsample': 0.7,
+        'colsample_bytree': 0.7,
+        'min_child_weight': 3,
+        'silent': 1,
+        'eta': 0.01,
+        'seed': 2020,
+        'tree_method':'gpu_hist'
+        'nthread': 4,}
+watchlist = [(train, 'train'),(test,'val')]
+xgb_model = xgb.train(params,train,num_boost_round=5000,evals = watchlist,early_stopping_rounds=300，verbose_eval=True)
+xgb_model.save_model(r'/kaggle/working/test-2020-1-demo/model/xgb.model')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
