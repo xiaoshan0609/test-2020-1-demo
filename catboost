@@ -1,0 +1,44 @@
+print('训练集size：',xgb_train.shape)
+
+from sklearn.model_selection import KFold
+import time
+import psutil
+from keras import backend as K
+import lightgbm as lgb
+from sklearn.metrics import f1_score
+import catboost as cbt
+from catboost import CatBoostClassifier, Pool, cv
+os.environ["CUDA_VISIBLE_DEVICES"] = "0，1，2，3"
+
+
+
+kf=KFold(5,shuffle=True,random_state=520)
+kfs=kf.split(xgb_train,xgb_train_label)
+print('xgboost-5折校验')
+ss=0
+for i, (train_index,vaild_index) in enumerate(kfs):
+    print('第{}次训练...'.format(i+1))
+    train_x=xgb_train[train_index,:]
+    train_y=xgb_train_label[train_index,:]
+    train_y=train_y.reshape(train_y.shape[0])
+    vaild_x=xgb_train[vaild_index,:]
+    vaild_y=xgb_train_label[vaild_index,:]
+    vaild_y=vaild_y.reshape(vaild_y.shape[0])
+    
+    train= cbt.Pool(data=train_x, label=train_y)
+    val = cbt.Pool(data=vaild_x, label=vaild_y)
+    
+    print("Memory free: {:2.4f} GB".format(psutil.virtual_memory().free / (1024**3)))
+    
+    cbt_model=cbt.CatBoostClassifier(iterations=10000,
+                                    learning_rate=0.01, 
+                                    eval_metric='TotalF1:use_weights=ture',
+                                    use_best_model=True, 
+                                    random_seed=42,
+                                    logging_level='Verbose',
+                                    task_type='GPU', #没有GPU可设为CPU
+                                    devices='0',
+                                    early_stopping_rounds=300,
+                                    loss_function='MultiClass',
+cbt_model.save_model(r'/kaggle/working/test-2020-1-demo/model/js_cgb.model')
+print('lightgbm完成')
