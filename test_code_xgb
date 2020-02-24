@@ -1,13 +1,15 @@
-from keras.models import Sequential，Model
+from keras.models import Sequential,Model
 from keras.layers import Dense, Dropout,Flatten,Conv1D,MaxPool1D,BatchNormalization
 import os
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-import xgboost
+import xgboost as xgb
+
+
 #os.chdir(r'E:\planetdata\model')
 
-fname=r'/kaggle/working/test-2020-1-demo/model/model2_14-0.02.hdf5'
+fname=r'F:\行星比赛\planetdata-kaggle\model\model2_14-0.02.hdf5'
 
 
 
@@ -53,7 +55,7 @@ model.load_weights(fname)
 model_layer_xgb = Model(inputs=model.input,outputs=model.get_layer('dense_2').output) 
 
 
-xgb_model=xgb.Booster(model_file=r'/kaggle/working/test-2020-1-demo/model/xgb.model')
+xgb_model=xgb.Booster(model_file=r'F:\行星比赛\planetdata-kaggle\model\xgb.model')
 
 
 
@@ -61,7 +63,7 @@ xgb_model=xgb.Booster(model_file=r'/kaggle/working/test-2020-1-demo/model/xgb.mo
 #逐条进行predict
 #os.chdir(r'E:\planetdata\vaildation')
 
-filepath=r'/kaggle/input/planetdata2020/vaildation/vaildation'
+filepath=r'E:\planetdata\vaildation'
 file=os.listdir(filepath)
 file.sort()
 file.sort(key=lambda x:int(x[:-5]))
